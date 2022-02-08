@@ -15,13 +15,16 @@ Copyleft 2022
 ~Robotto
 */
 #include <SPI.h>
+//filament order from back to front and back again.
+const uint8_t order[18] = {3, 4, 8, 7, 5, 9, 6, 2, 0, 1, 0, 2, 6, 9, 5, 7, 8, 4};
+
 
 
 //Using hardware SPI pins:
-static unsigned int HV_ClockPin = 15; //SCLK  - HV pin 28
-static unsigned int HV_DataPin = 16;  //MOSI - HV pin 32
-static unsigned int HV_LatchPin = 14; //HV pin 31
-static unsigned int HV_BlankPin = 10; //HV pin 33
+static unsigned int HV_ClockPin = 15; //SCLK - yellow wire - HV pin 28 
+static unsigned int HV_DataPin = 16;  //MOSI - green wire - HV pin 32
+static unsigned int HV_LatchPin = 14; //Blue wire - HV pin 31
+static unsigned int HV_BlankPin = 10; //White wire - HV pin 33
 //static unsigned int HV_PolarityPin = A0;
 
 static unsigned int DCDC_EnablePin = 9;
@@ -33,7 +36,7 @@ void setup()
     Serial.begin(9600);
     Serial1.begin(9600);
     pinMode(DCDC_EnablePin,OUTPUT);
-    digitalWrite(DCDC_EnablePin,HIGH); //youtu.be/R-FxmoVM7X4
+    digitalWrite(DCDC_EnablePin,LOW);
 
     SPI.begin();
 
@@ -51,11 +54,19 @@ void setup()
  //   digitalWrite(HV_PolarityPin,HIGH); //LOW: enabled pins source current, HIGH: Enabled pins sink current
 
 
-    SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE2));
+    SPI.beginTransaction(SPISettings(200000, MSBFIRST, SPI_MODE2));
 
-    //delay(5000);
+    delay(3000);
+    digitalWrite(DCDC_EnablePin,HIGH); //youtu.be/R-FxmoVM7X4
 
-    shiftOutBitPatternFromSpeed((uint8_t)255);
+
+    prettyAnimation(3);
+    
+    for(int i=333;i>0;i=i-111)
+    {
+      shiftOutBitPatternFromSpeed(i);
+      delay(500);
+    }
 }
 
 
@@ -65,7 +76,7 @@ uint8_t rxOld = 250;
 void loop()
 {
     if(Serial.available()) rxByte = Serial.read();
-//    if(Serial1.available()) rxByte = Serial1.read();
+    if(Serial1.available()) rxByte = Serial1.read();
  
     if(rxByte != rxOld){
       if(rxByte==255)     {
@@ -81,13 +92,13 @@ void loop()
       rxOld=rxByte;        
         
       while(Serial.available()) Serial.read();
-//      while(Serial1.available()) Serial1.read();
+      while(Serial1.available()) Serial1.read();
       
     }
 
 }
 
-void shiftOutBitPatternFromSpeed(uint8_t speed){
+void shiftOutBitPatternFromSpeed(uint32_t speed){
     uint8_t I,X,C; //ones, tens, hundreds
     uint16_t Iout, Xout, Cout; //for the properly patterened bits, ready for concat to uint32_t
     uint32_t speedOut;
@@ -133,4 +144,31 @@ void shiftOutBitPatternFromSpeed(uint8_t speed){
 */
     digitalWrite(HV_LatchPin,HIGH);
    
+}
+
+
+void prettyAnimation(int n) 
+{
+ 
+  uint8_t pointer, C, X, I;
+
+  while(n>0){
+
+      for(pointer=0;pointer<18;pointer++){ //Roll up
+       
+        shiftOutBitPatternFromSpeed(roll(pointer,C,X,I));
+              
+       delay(75);
+      }
+      
+  n--;
+  }
+
+
+}
+
+uint32_t roll(uint8_t pointer,uint8_t C,uint8_t X,uint8_t I){
+    uint32_t out=    order[pointer]*100 + order[(pointer+1)%18]*10 + order[(pointer+2)%18];
+    Serial.println(out);
+    return out;
 }
